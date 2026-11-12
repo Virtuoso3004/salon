@@ -3,72 +3,170 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Запись</title>
+<meta name="color-scheme" content="light">
+<title>Lumière — запись</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&display=swap" rel="stylesheet">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
 :root{
-  --bg: var(--tg-theme-bg-color, #ffffff);
-  --text: var(--tg-theme-text-color, #1c1c1e);
-  --hint: var(--tg-theme-hint-color, #8e8e93);
-  --card: var(--tg-theme-secondary-bg-color, #f2f2f7);
-  --accent: #c2185b;
+  --bg:#f7f1e3;
+  --card:rgba(255,253,247,.85);
+  --text:#4a3b22;
+  --muted:#9a8660;
+  --gold:#b68f54;
+  --gold-dark:#8a6e47;
+  --line:rgba(182,143,84,.38);
+  --gold-grad:linear-gradient(135deg,#dcc183 0%,#b68f54 55%,#d9bd7f 100%);
+  --serif:"Cormorant Garamond",Georgia,"Times New Roman",serif;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-body{margin:0;padding:16px 16px 110px;background:var(--bg);color:var(--text);
-  font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
-h1{font-size:22px;margin:4px 0 2px}
-.sub{color:var(--hint);margin:0 0 18px;font-size:14px}
-h2{font-size:15px;margin:22px 0 10px;color:var(--hint);font-weight:600;
-  text-transform:uppercase;letter-spacing:.04em}
-.hidden{display:none}
-.list{display:flex;flex-direction:column;gap:8px}
-.card{background:var(--card);border:2px solid transparent;border-radius:14px;
-  padding:12px 14px;display:flex;justify-content:space-between;align-items:center;
-  gap:10px;cursor:pointer;text-align:left;color:var(--text);font:inherit;width:100%}
-.card small{color:var(--hint);display:block;font-size:13px}
-.card b{white-space:nowrap}
+html{background:var(--bg)}
+body{
+  margin:0;padding:0 16px 120px;color:var(--text);
+  background:radial-gradient(ellipse 120% 60% at 50% 0%,#fffaf0 0%,var(--bg) 62%);
+  font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  min-height:100vh;
+}
+.wrap{max-width:520px;margin:0 auto}
+
+/* логотип */
+.hero{position:relative;margin:0 -16px;overflow:hidden;aspect-ratio:10/7.4}
+.hero img{
+  display:block;width:115%;height:100%;margin-left:-7.5%;object-fit:cover;object-position:center 49%;
+  -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 14%,#000 86%,transparent 100%),linear-gradient(180deg,#000 95%,transparent 100%);
+  -webkit-mask-composite:source-in;
+          mask-image:linear-gradient(90deg,transparent 0,#000 14%,#000 86%,transparent 100%),linear-gradient(180deg,#000 95%,transparent 100%);
+          mask-composite:intersect;
+}
+.wordmark{display:none;text-align:center;padding:34px 0 8px;font-family:var(--serif);
+  font-size:56px;font-weight:600;background:var(--gold-grad);-webkit-background-clip:text;
+  background-clip:text;color:transparent}
+.hero.noimg .wordmark{display:block}
+.hero.noimg{aspect-ratio:auto}
+.hero.noimg img{display:none}
+
+.lead{text-align:center;margin:10px 0 6px}
+.lead .cap{font-size:12px;letter-spacing:.32em;text-transform:uppercase;color:var(--gold);font-weight:500}
+.divider{display:flex;align-items:center;gap:12px;margin:16px 24px 4px;color:var(--gold)}
+.divider::before,.divider::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,transparent,var(--line))}
+.divider::after{transform:scaleX(-1)}
+.divider span{font-size:13px}
+
+/* заголовки шагов */
+.step{margin-top:26px}
+.step h2{
+  display:flex;align-items:center;gap:10px;margin:0 0 12px;
+  font:600 22px/1.1 var(--serif);color:var(--gold-dark);letter-spacing:.01em
+}
+.step h2 i{
+  font:600 14px/1 var(--serif);font-style:normal;width:26px;height:26px;border-radius:50%;
+  border:1px solid var(--gold);color:var(--gold);display:flex;align-items:center;justify-content:center
+}
+.hidden{display:none!important}
+
+/* карточки */
+.list{display:flex;flex-direction:column;gap:10px}
+.card{
+  width:100%;display:flex;align-items:center;gap:12px;text-align:left;cursor:pointer;
+  background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 16px;
+  color:var(--text);font:inherit;transition:box-shadow .2s,border-color .2s,background .2s;
+}
+.card:active{transform:scale(.99)}
+.card .main{flex:1;min-width:0}
+.card .name{font:600 19px/1.15 var(--serif);display:block}
+.card small{display:block;color:var(--muted);font-size:13px;margin-top:3px}
+.price{
+  font:700 20px/1 var(--serif);white-space:nowrap;
+  background:var(--gold-grad);-webkit-background-clip:text;background-clip:text;color:transparent
+}
+.card.sel{border-color:var(--gold);background:#fffbf0;box-shadow:0 0 0 3px rgba(182,143,84,.16),0 6px 18px rgba(182,143,84,.14)}
+.avatar{
+  width:44px;height:44px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--gold);font:600 22px/1 var(--serif);color:var(--gold);
+  background:radial-gradient(circle at 35% 30%,#fffdf6,#f3e8cc)
+}
+
+/* дата и время */
 .row{display:flex;flex-wrap:wrap;gap:8px}
-.chip{background:var(--card);border:2px solid transparent;border-radius:12px;
-  padding:10px 14px;cursor:pointer;color:var(--text);font:inherit;text-align:center}
-.chip small{display:block;color:var(--hint);font-size:12px}
-.sel{border-color:var(--accent)}
-input{width:100%;padding:13px 14px;border-radius:12px;border:2px solid transparent;
-  background:var(--card);color:var(--text);font:inherit;margin-bottom:8px;outline:none}
-input:focus{border-color:var(--accent)}
-.note{color:var(--hint);font-size:14px;padding:6px 2px}
+.dates{flex-wrap:nowrap;overflow-x:auto;margin:0 -16px;padding:4px 16px 10px;scrollbar-width:none}
+.dates::-webkit-scrollbar{display:none}
+.chip{
+  flex:none;background:var(--card);border:1px solid var(--line);border-radius:14px;color:var(--text);
+  padding:9px 0;min-width:54px;text-align:center;cursor:pointer;font:600 19px/1.1 var(--serif)
+}
+.chip small{display:block;font:500 11px/1.2 -apple-system,"Segoe UI",Roboto,sans-serif;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--muted);margin-top:3px}
+.times .chip{min-width:78px;padding:11px 0;border-radius:999px;font-size:18px}
+.chip.sel{background:var(--gold-grad);border-color:transparent;color:#fff;box-shadow:0 6px 14px rgba(182,143,84,.32)}
+.chip.sel small{color:rgba(255,255,255,.85)}
+.note{color:var(--muted);font-size:14px;padding:6px 2px}
+
+/* итог и поля */
+.summary{
+  border:1px solid var(--line);border-radius:16px;padding:14px 16px;margin-bottom:12px;
+  background:linear-gradient(180deg,#fffdf7,#fbf4e2)
+}
+.summary .t{font:600 19px/1.2 var(--serif);color:var(--gold-dark)}
+.summary .s{color:var(--muted);font-size:14px;margin-top:3px}
+.summary .p{margin-top:8px;display:flex;justify-content:space-between;align-items:baseline;
+  border-top:1px dashed var(--line);padding-top:8px;font-size:14px;color:var(--muted)}
+input{
+  width:100%;padding:14px 16px;margin-bottom:10px;border-radius:14px;border:1px solid var(--line);
+  background:#fffdf8;color:var(--text);font:inherit;outline:none;transition:box-shadow .2s,border-color .2s
+}
+input::placeholder{color:#b8a888}
+input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(182,143,84,.16)}
+.foot{text-align:center;margin-top:34px;color:var(--muted);font-size:12px;letter-spacing:.2em;text-transform:uppercase}
+.foot b{display:block;font:600 22px var(--serif);letter-spacing:.04em;text-transform:none;color:var(--gold);margin-bottom:2px}
 </style>
 </head>
 <body>
-<h1 id="title">Запись</h1>
-<p class="sub">Выберите услугу, мастера и удобное время</p>
+<div class="wrap">
+  <div class="hero" id="hero">
+    <img src="/static/1794478708598.jpg" alt="Lumière" onerror="document.getElementById('hero').classList.add('noimg')">
+    <div class="wordmark">lumière</div>
+  </div>
 
-<h2>1. Услуга</h2>
-<div id="services" class="list"><div class="note">Загрузка…</div></div>
+  <div class="lead">
+    <div class="cap">Онлайн-запись</div>
+    <div class="divider"><span>✦</span></div>
+  </div>
 
-<div id="s2" class="hidden"><h2>2. Мастер</h2><div id="masters" class="list"></div></div>
+  <div class="step"><h2><i>1</i>Выберите услугу</h2>
+    <div id="services" class="list"><div class="note">Загрузка…</div></div>
+  </div>
 
-<div id="s3" class="hidden">
-  <h2>3. Дата и время</h2>
-  <div id="dates" class="row"></div>
-  <div id="times" class="row" style="margin-top:12px"></div>
-</div>
+  <div class="step hidden" id="s2"><h2><i>2</i>Выберите мастера</h2>
+    <div id="masters" class="list"></div>
+  </div>
 
-<div id="s4" class="hidden">
-  <h2>4. Ваши данные</h2>
-  <input id="name" type="text" placeholder="Имя" maxlength="60" autocomplete="name">
-  <input id="phone" type="tel" placeholder="Телефон, например +7 900 000-00-00" maxlength="25" autocomplete="tel">
+  <div class="step hidden" id="s3"><h2><i>3</i>Дата и время</h2>
+    <div id="dates" class="row dates"></div>
+    <div id="times" class="row times" style="margin-top:6px"></div>
+  </div>
+
+  <div class="step hidden" id="s4"><h2><i>4</i>Ваши данные</h2>
+    <div class="summary" id="summary"></div>
+    <input id="name" type="text" placeholder="Ваше имя" maxlength="60" autocomplete="name">
+    <input id="phone" type="tel" placeholder="Телефон: +7 900 000-00-00" maxlength="25" autocomplete="tel">
+  </div>
+
+  <div class="foot"><b>lumière</b>салон красоты</div>
 </div>
 
 <script>
 const tg = Telegram.WebApp;
 tg.ready();
 tg.expand();
-tg.MainButton.setParams({text: "Записаться", color: "#c2185b", text_color: "#ffffff"});
+try { tg.setHeaderColor("#f7f1e3"); tg.setBackgroundColor("#f7f1e3"); } catch (e) {}
+tg.MainButton.setParams({text: "Записаться", color: "#b68f54", text_color: "#ffffff"});
 
-const state = {service: null, master: null, date: null, time: null};
+const state = {service: null, master: null, date: null, dateLabel: "", time: null};
 let cfg = null;
 const $ = id => document.getElementById(id);
 const WEEK = ["вс", "пн", "вт", "ср", "чт", "пт", "сб"];
+const MONTHS = ["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
 
 function el(tag, cls, text) {
   const e = document.createElement(tag);
@@ -83,6 +181,9 @@ function mark(box, node) {
   box.querySelectorAll(".sel").forEach(x => x.classList.remove("sel"));
   node.classList.add("sel");
 }
+function scrollTo(id) {
+  setTimeout(() => $(id).scrollIntoView({behavior: "smooth", block: "start"}), 60);
+}
 
 async function init() {
   try {
@@ -91,7 +192,6 @@ async function init() {
     $("services").textContent = "Не удалось загрузить данные. Закройте и откройте снова.";
     return;
   }
-  $("title").textContent = cfg.salon + " — запись";
   renderServices();
   const u = tg.initDataUnsafe && tg.initDataUnsafe.user;
   if (u && u.first_name) $("name").value = u.first_name;
@@ -102,9 +202,9 @@ function renderServices() {
   box.textContent = "";
   cfg.services.forEach(s => {
     const b = el("button", "card");
-    const left = el("div");
-    left.append(el("span", "", s.name), el("small", "", s.minutes + " мин"));
-    b.append(left, el("b", "", money(s.price)));
+    const main = el("div", "main");
+    main.append(el("span", "name", s.name), el("small", "", s.minutes + " мин"));
+    b.append(main, el("span", "price", money(s.price)));
     b.onclick = () => {
       mark(box, b);
       state.service = s; state.master = null; state.date = null; state.time = null;
@@ -112,6 +212,7 @@ function renderServices() {
       $("s4").classList.add("hidden");
       renderMasters();
       updateButton();
+      scrollTo("s2");
     };
     box.append(b);
   });
@@ -122,9 +223,9 @@ function renderMasters() {
   box.textContent = "";
   cfg.masters.filter(m => m.services.includes(state.service.id)).forEach(m => {
     const b = el("button", "card");
-    const left = el("div");
-    left.append(el("span", "", m.name), el("small", "", m.role));
-    b.append(left);
+    const main = el("div", "main");
+    main.append(el("span", "name", m.name), el("small", "", m.role));
+    b.append(el("div", "avatar", m.name.charAt(0)), main);
     b.onclick = () => {
       mark(box, b);
       state.master = m; state.date = null; state.time = null;
@@ -133,6 +234,7 @@ function renderMasters() {
       $("s3").classList.remove("hidden");
       $("s4").classList.add("hidden");
       updateButton();
+      scrollTo("s3");
     };
     box.append(b);
   });
@@ -149,7 +251,14 @@ function renderDates() {
     const iso = d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
     const b = el("button", "chip", String(d.getDate()));
     b.append(el("small", "", WEEK[d.getDay()]));
-    b.onclick = () => { mark(box, b); state.date = iso; state.time = null; loadSlots(); updateButton(); };
+    b.onclick = () => {
+      mark(box, b);
+      state.date = iso;
+      state.dateLabel = d.getDate() + " " + MONTHS[d.getMonth()];
+      state.time = null;
+      loadSlots();
+      updateButton();
+    };
     box.append(b);
   }
 }
@@ -169,13 +278,32 @@ async function loadSlots() {
     }
     data.slots.forEach(t => {
       const b = el("button", "chip", t);
-      b.onclick = () => { mark(box, b); state.time = t; $("s4").classList.remove("hidden"); updateButton(); };
+      b.onclick = () => {
+        mark(box, b);
+        state.time = t;
+        renderSummary();
+        $("s4").classList.remove("hidden");
+        updateButton();
+        scrollTo("s4");
+      };
       box.append(b);
     });
   } catch (e) {
     box.textContent = "";
     box.append(el("div", "note", "Ошибка загрузки. Попробуйте ещё раз."));
   }
+}
+
+function renderSummary() {
+  const box = $("summary");
+  box.textContent = "";
+  box.append(
+    el("div", "t", state.service.name),
+    el("div", "s", state.master.name + " · " + state.dateLabel + ", " + state.time)
+  );
+  const p = el("div", "p");
+  p.append(el("span", "", "К оплате в салоне"), el("span", "price", money(state.service.price)));
+  box.append(p);
 }
 
 function validForm() {
@@ -185,7 +313,12 @@ function validForm() {
 }
 
 function updateButton() {
-  if (validForm()) tg.MainButton.show(); else tg.MainButton.hide();
+  if (validForm()) {
+    tg.MainButton.setText("Записаться · " + money(state.service.price));
+    tg.MainButton.show();
+  } else {
+    tg.MainButton.hide();
+  }
 }
 
 $("name").addEventListener("input", updateButton);
