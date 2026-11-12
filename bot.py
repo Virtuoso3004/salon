@@ -10,7 +10,8 @@ from aiohttp import web
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from aiogram.filters import CommandStart
+from aiogram.exceptions import TelegramAPIError
+from aiogram.filters import Command, CommandStart
 from aiogram.types import KeyboardButton, Message, ReplyKeyboardMarkup, WebAppInfo
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 
@@ -37,6 +38,22 @@ MENU = ReplyKeyboardMarkup(
     ],
     resize_keyboard=True,
 )
+
+ADMIN_MENU = ReplyKeyboardMarkup(
+    keyboard=[
+        [KeyboardButton(text="📅 Сегодня"), KeyboardButton(text="📅 Завтра")],
+        [KeyboardButton(text="👤 Режим клиента")],
+    ],
+    resize_keyboard=True,
+)
+
+# Владелец может временно "стать клиентом", чтобы проверить бота
+CLIENT_MODE: set[int] = set()
+
+
+async def is_admin(message: Message) -> bool:
+    uid = message.from_user.id
+    return ADMIN_ID is not None and uid == ADMIN_ID and uid not in CLIENT_MODE
 
 
 # ---------- вспомогательные функции ----------
@@ -96,6 +113,23 @@ def find_answer(text: str) -> str | None:
     return best_answer
 
 
+def schedule_text(day: date, title: str) -> str:
+    items = storage.by_date(day.isoformat())
+    head = f"📅 <b>{title}, {day.strftime('%d.%m.%Y')}</b>\n\n"
+    if not items:
+        return head + "Записей нет."
+    lines = []
+    for b in items:
+        service = next((x for x in SERVICES if x["id"] == b["service_id"]), None)
+        master = next((m for m in MASTERS if m["id"] == b["master_id"]), None)
+        lines.append(
+            f"<b>{fmt_time(b['start'])}–{fmt_time(b['end'])}</b> "
+            f"{service['name'] if service else '?'} ({master['name'] if master else '?'})\n"
+            f"   👤 {html.escape(b['name'])}, {html.escape(b['phone'])}"
+        )
+    return head + "\n\n".join(lines)
+
+
 # ---------- расчёт свободного времени ----------
 
 def now_local() -> datetime:
@@ -136,6 +170,17 @@ def free_slots(master_id: int, service_id: int, date_str: str) -> list[int]:
 
 @router.message(CommandStart())
 async def start(message: Message):
+    if await is_admin(message):
+        await message.answer(
+            "👑 <b>Режим владельца</b>\n\n"
+            "• Новые записи и вопросы клиентов будут приходить сюда.\n"
+            "• Чтобы ответить клиенту, смахните его сообщение вправо "
+            "(«Ответить») и напишите ответ.\n"
+            "• Кнопки ниже показывают записи на сегодня и завтра.\n"
+            "• Посмотреть бота глазами клиента: «👤 Режим клиента».",
+            reply_markup=ADMIN_MENU,
+        )
+        return
     await message.answer(
         f"Здравствуйте! Я администратор салона красоты <b>{SALON['name']}</b> ✨\n"
         "Помогу записаться и отвечу на вопросы.",
@@ -205,9 +250,77 @@ async def on_booking(message: Message):
             f"📞 {html.escape(phone)}\n"
             f"💅 {service['name']}\n"
             f"👩 {master['name']}\n"
-            f"📅 {pretty_date}, {fmt_time(start_min)}",
+            f"📅 {pretty_date}, {fmt_time(start_min)}\n"
+            f"ID: <code>{message.from_user.id}</code>\n\n"
+            "↩️ Ответьте на это сообщение, чтобы написать клиенту.",
         )
 
+
+# ----- команды и действия владельца -----
+
+@router.message(Command("client"), F.from_user.id == ADMIN_ID)
+@router.message(F.text == "👤 Режим клиента", F.from_user.id == ADMIN_ID)
+async def to_client_mode(message: Message):
+    CLIENT_MODE.add(message.from_user.id)
+    await message.answer(
+        "👤 Вы в режиме клиента. Бот работает так, как его видят клиенты.\n"
+        "Вернуться к режиму владельца: /admin",
+        reply_markup=MENU,
+    )
+
+
+@router.message(Command("admin"), F.from_user.id == ADMIN_ID)
+async def to_admin_mode(message: Message):
+    CLIENT_MODE.discard(message.from_user.id)
+    await message.answer("👑 Режим владельца включён.", reply_markup=ADMIN_MENU)
+
+
+@router.message(is_admin, F.text == "📅 Сегодня")
+async def admin_today(message: Message):
+    await message.answer(schedule_text(now_local().date(), "Сегодня"), reply_markup=ADMIN_MENU)
+
+
+@router.message(is_admin, F.text == "📅 Завтра")
+async def admin_tomorrow(message: Message):
+    day = now_local().date() + timedelta(days=1)
+    await message.answer(schedule_text(day, "Завтра"), reply_markup=ADMIN_MENU)
+
+
+@router.message(is_admin, F.reply_to_message, F.text)
+async def admin_reply(message: Message):
+    """Владелец ответил на уведомление: пересылаем ответ клиенту."""
+    source = message.reply_to_message.text or ""
+    found = re.search(r"ID: (\d+)", source)
+    if not found:
+        await message.answer(
+            "Не понял, кому отвечать 🤔 Ответьте именно на уведомление "
+            "о вопросе или записи клиента.",
+            reply_markup=ADMIN_MENU,
+        )
+        return
+    client_id = int(found.group(1))
+    try:
+        await message.bot.send_message(
+            client_id, f"💬 <b>Ответ администратора:</b>\n\n{html.escape(message.text)}"
+        )
+        await message.answer("✅ Ответ отправлен клиенту.", reply_markup=ADMIN_MENU)
+    except TelegramAPIError:
+        await message.answer(
+            "Не удалось отправить 😔 Возможно, клиент заблокировал бота.",
+            reply_markup=ADMIN_MENU,
+        )
+
+
+@router.message(is_admin)
+async def admin_other(message: Message):
+    await message.answer(
+        "Чтобы ответить клиенту, смахните его сообщение вправо и напишите ответ 👆\n"
+        "Меню: /start",
+        reply_markup=ADMIN_MENU,
+    )
+
+
+# ----- клиенты -----
 
 @router.message(F.text == "💰 Прайс")
 async def price(message: Message):
@@ -225,12 +338,39 @@ async def any_message(message: Message):
         await message.answer("Я понимаю только текстовые сообщения 🙂", reply_markup=MENU)
         return
     answer = find_answer(message.text)
-    if answer is None:
-        answer = (
-            "Не нашёл ответ на этот вопрос 🤔\n"
-            f"Позвоните нам: {SALON['phone']}, и мы всё подскажем."
+    if answer is not None:
+        await message.answer(answer, reply_markup=MENU)
+        return
+
+    # Ответа в базе нет: передаём вопрос владельцу
+    if ADMIN_ID is None:
+        await message.answer(
+            f"Не нашёл ответ на этот вопрос 🤔 Позвоните нам: {SALON['phone']}.",
+            reply_markup=MENU,
         )
-    await message.answer(answer, reply_markup=MENU)
+        return
+
+    user = message.from_user
+    username = f"@{user.username}" if user.username else "—"
+    try:
+        await message.bot.send_message(
+            ADMIN_ID,
+            "❓ <b>Вопрос от клиента</b>\n\n"
+            f"👤 {html.escape(user.full_name)} ({html.escape(username)})\n"
+            f"ID: <code>{user.id}</code>\n\n"
+            f"«{html.escape(message.text[:1000])}»\n\n"
+            "↩️ Ответьте на это сообщение, и ответ уйдёт клиенту.",
+        )
+        await message.answer(
+            "Хороший вопрос! 🙌 Я передал его администратору, "
+            "ответ придёт сюда, в этот чат.",
+            reply_markup=MENU,
+        )
+    except TelegramAPIError:
+        await message.answer(
+            f"Не получилось передать вопрос 😔 Позвоните нам: {SALON['phone']}.",
+            reply_markup=MENU,
+        )
 
 
 # ---------- веб-часть (мини-приложение и его API) ----------
