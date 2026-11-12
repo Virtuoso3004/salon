@@ -37,3 +37,10 @@ def add(booking):
     _bookings.append(booking)
     _save()
     return booking
+
+def by_date(date_str):
+    """Все записи на дату, по времени."""
+    return sorted(
+        (b for b in _bookings if b["date"] == date_str),
+        key=lambda b: b["start"],
+    )
