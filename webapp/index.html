@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Запись</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{
+  --bg: var(--tg-theme-bg-color, #ffffff);
+  --text: var(--tg-theme-text-color, #1c1c1e);
+  --hint: var(--tg-theme-hint-color, #8e8e93);
+  --card: var(--tg-theme-secondary-bg-color, #f2f2f7);
+  --accent: #c2185b;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;padding:16px 16px 110px;background:var(--bg);color:var(--text);
+  font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+h1{font-size:22px;margin:4px 0 2px}
+.sub{color:var(--hint);margin:0 0 18px;font-size:14px}
+h2{font-size:15px;margin:22px 0 10px;color:var(--hint);font-weight:600;
+  text-transform:uppercase;letter-spacing:.04em}
+.hidden{display:none}
+.list{display:flex;flex-direction:column;gap:8px}
+.card{background:var(--card);border:2px solid transparent;border-radius:14px;
+  padding:12px 14px;display:flex;justify-content:space-between;align-items:center;
+  gap:10px;cursor:pointer;text-align:left;color:var(--text);font:inherit;width:100%}
+.card small{color:var(--hint);display:block;font-size:13px}
+.card b{white-space:nowrap}
+.row{display:flex;flex-wrap:wrap;gap:8px}
+.chip{background:var(--card);border:2px solid transparent;border-radius:12px;
+  padding:10px 14px;cursor:pointer;color:var(--text);font:inherit;text-align:center}
+.chip small{display:block;color:var(--hint);font-size:12px}
+.sel{border-color:var(--accent)}
+input{width:100%;padding:13px 14px;border-radius:12px;border:2px solid transparent;
+  background:var(--card);color:var(--text);font:inherit;margin-bottom:8px;outline:none}
+input:focus{border-color:var(--accent)}
+.note{color:var(--hint);font-size:14px;padding:6px 2px}
+</style>
+</head>
+<body>
+<h1 id="title">Запись</h1>
+<p class="sub">Выберите услугу, мастера и удобное время</p>
+
+<h2>1. Услуга</h2>
+<div id="services" class="list"><div class="note">Загрузка…</div></div>
+
+<div id="s2" class="hidden"><h2>2. Мастер</h2><div id="masters" class="list"></div></div>
+
+<div id="s3" class="hidden">
+  <h2>3. Дата и время</h2>
+  <div id="dates" class="row"></div>
+  <div id="times" class="row" style="margin-top:12px"></div>
+</div>
+
+<div id="s4" class="hidden">
+  <h2>4. Ваши данные</h2>
+  <input id="name" type="text" placeholder="Имя" maxlength="60" autocomplete="name">
+  <input id="phone" type="tel" placeholder="Телефон, например +7 900 000-00-00" maxlength="25" autocomplete="tel">
+</div>
+
+<script>
+const tg = Telegram.WebApp;
+tg.ready();
+tg.expand();
+tg.MainButton.setParams({text: "Записаться", color: "#c2185b", text_color: "#ffffff"});
+
+const state = {service: null, master: null, date: null, time: null};
+let cfg = null;
+const $ = id => document.getElementById(id);
+const WEEK = ["вс", "пн", "вт", "ср", "чт", "пт", "сб"];
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+const money = n => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, " ") + " ₽";
+const pad = n => String(n).padStart(2, "0");
+
+function mark(box, node) {
+  box.querySelectorAll(".sel").forEach(x => x.classList.remove("sel"));
+  node.classList.add("sel");
+}
+
+async function init() {
+  try {
+    cfg = await (await fetch("/api/config")).json();
+  } catch (e) {
+    $("services").textContent = "Не удалось загрузить данные. Закройте и откройте снова.";
+    return;
+  }
+  $("title").textContent = cfg.salon + " — запись";
+  renderServices();
+  const u = tg.initDataUnsafe && tg.initDataUnsafe.user;
+  if (u && u.first_name) $("name").value = u.first_name;
+}
+
+function renderServices() {
+  const box = $("services");
+  box.textContent = "";
+  cfg.services.forEach(s => {
+    const b = el("button", "card");
+    const left = el("div");
+    left.append(el("span", "", s.name), el("small", "", s.minutes + " мин"));
+    b.append(left, el("b", "", money(s.price)));
+    b.onclick = () => {
+      mark(box, b);
+      state.service = s; state.master = null; state.date = null; state.time = null;
+      $("s3").classList.add("hidden");
+      $("s4").classList.add("hidden");
+      renderMasters();
+      updateButton();
+    };
+    box.append(b);
+  });
+}
+
+function renderMasters() {
+  const box = $("masters");
+  box.textContent = "";
+  cfg.masters.filter(m => m.services.includes(state.service.id)).forEach(m => {
+    const b = el("button", "card");
+    const left = el("div");
+    left.append(el("span", "", m.name), el("small", "", m.role));
+    b.append(left);
+    b.onclick = () => {
+      mark(box, b);
+      state.master = m; state.date = null; state.time = null;
+      $("times").textContent = "";
+      renderDates();
+      $("s3").classList.remove("hidden");
+      $("s4").classList.add("hidden");
+      updateButton();
+    };
+    box.append(b);
+  });
+  $("s2").classList.remove("hidden");
+}
+
+function renderDates() {
+  const box = $("dates");
+  box.textContent = "";
+  const base = new Date(cfg.today + "T12:00:00");
+  for (let i = 0; i <= cfg.days; i++) {
+    const d = new Date(base);
+    d.setDate(base.getDate() + i);
+    const iso = d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+    const b = el("button", "chip", String(d.getDate()));
+    b.append(el("small", "", WEEK[d.getDay()]));
+    b.onclick = () => { mark(box, b); state.date = iso; state.time = null; loadSlots(); updateButton(); };
+    box.append(b);
+  }
+}
+
+async function loadSlots() {
+  const box = $("times");
+  box.textContent = "";
+  box.append(el("div", "note", "Ищу свободное время…"));
+  try {
+    const url = "/api/slots?master=" + state.master.id + "&service=" + state.service.id + "&date=" + state.date;
+    const data = await (await fetch(url)).json();
+    box.textContent = "";
+    if (!data.slots.length) {
+      box.append(el("div", "note", "На эту дату свободного времени нет. Выберите другой день."));
+      $("s4").classList.add("hidden");
+      return;
+    }
+    data.slots.forEach(t => {
+      const b = el("button", "chip", t);
+      b.onclick = () => { mark(box, b); state.time = t; $("s4").classList.remove("hidden"); updateButton(); };
+      box.append(b);
+    });
+  } catch (e) {
+    box.textContent = "";
+    box.append(el("div", "note", "Ошибка загрузки. Попробуйте ещё раз."));
+  }
+}
+
+function validForm() {
+  const phoneDigits = $("phone").value.replace(/\D/g, "");
+  return state.service && state.master && state.date && state.time &&
+    $("name").value.trim().length > 0 && phoneDigits.length >= 10 && phoneDigits.length <= 15;
+}
+
+function updateButton() {
+  if (validForm()) tg.MainButton.show(); else tg.MainButton.hide();
+}
+
+$("name").addEventListener("input", updateButton);
+$("phone").addEventListener("input", updateButton);
+
+tg.MainButton.onClick(() => {
+  if (!validForm()) return;
+  tg.sendData(JSON.stringify({
+    service: state.service.id,
+    master: state.master.id,
+    date: state.date,
+    time: state.time,
+    name: $("name").value.trim(),
+    phone: $("phone").value.trim()
+  }));
+});
+
+init();
+</script>
+</body>
+</html>
