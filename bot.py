@@ -425,6 +425,7 @@ def main():
     app = web.Application()
     app.router.add_get("/", health)
     app.router.add_get("/app", webapp_page)
+    app.router.add_static("/static", BASE_DIR / "webapp")
     app.router.add_get("/api/config", api_config)
     app.router.add_get("/api/slots", api_slots)
     SimpleRequestHandler(dispatcher=dp, bot=bot, secret_token=WEBHOOK_SECRET).register(
